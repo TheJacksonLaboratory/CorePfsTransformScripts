@@ -1,0 +1,1 @@
+python \\jax\jax\phenotype\Transform_scripts_PFS\KOMP\LD_transform.py \\jax\jax\phenotype\PFS-File-Import-Test\LightDark\transform\ \\jax\jax\phenotype\PFS-File-Import-Test\LightDark\data\
