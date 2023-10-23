@@ -39,14 +39,13 @@ def readxlsx(importPath, skiprows, nrow=None):
     data = pd.read_excel(str(importPath), skiprows=skiprows, nrows=nrow)
     return data
 
-# Accepts date time in the format m/d/yyyy hh:mm
+# Accepts date time in the format m/d/yyyy
 def corePfsDateTimeKluge(timestr):
-    timestr = timestr.replace(' AM','')
-    timestr = timestr.replace(' PM','')
-    dt = datetime.strptime(timestr, '%m/%d/%Y %H:%M')
-    corrected = datetime.strftime(dt, '%m/%d/%Y %H:%M')
+    dt = datetime.strptime(timestr, '%m/%d/%Y')
+    corrected = datetime.strftime(dt, '%m/%d/%Y')
     return corrected
-	
+
+    
 def calculations_LD(data):
     data['Latency to first transition into dark (sec)'] = data.groupby(['EXPT_SAMPLE_BARCODE'])['LATENCY (CENTROID)'].transform('nth', 0)
     data['Side changes'] = data.groupby(['EXPT_SAMPLE_BARCODE'])['ENTRY COUNT (CENTROID)'].transform('nth', 0)
@@ -67,8 +66,8 @@ def calculations_LD(data):
 
 def final_data_LD(data):
     colNameNew = ['EXPT_SAMPLE_BARCODE',
-                  'Date of test',
-                  'Experimenter ID',
+                  'Test Date',
+                  'Tester Name',
                   'Arena ID',
                   'Start time',
                   'Sample Duration',
@@ -118,7 +117,7 @@ def calculations_CDO_OF(data):
 
 def calculations_ZDS_OF(data):
     data[list(data)] = data[list(data)].astype(str)
-    data = data.groupby(['EXPT_SAMPLE_BARCODE', 'SAMPLE', 'Date of test', 'Experimenter ID', 'Comments'], \
+    data = data.groupby(['EXPT_SAMPLE_BARCODE', 'SAMPLE', 'Test Date', 'Tester Name', 'Comments'], \
                         as_index=False, sort=False).agg(','.join)
     data[['DURATION_P','DURATION_CORNER','DURATION_CENTER']] = data['DURATION (CENTROID)'].str.split(',',expand=True).apply(pd.to_numeric)
     data[['ENTRY_P','ENTRY_CORNER','ENTRY_CENTER']] = data['ENTRY COUNT (CENTROID)'].str.split(',',expand=True).apply(pd.to_numeric)
@@ -154,8 +153,8 @@ def calculations_ZDS_OF(data):
 
 def data_CDO_OF(data):
     colNameNew = ['EXPT_SAMPLE_BARCODE',
-                  'Date of test',
-                  'Experimenter ID',
+                  'Test Date',
+                  'Tester Name',
                   'Arena ID',
                   'Start Date and Time',
                   'Sample Duration',

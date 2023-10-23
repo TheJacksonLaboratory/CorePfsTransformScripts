@@ -48,8 +48,8 @@ def transform(importPath, loadedPath):
 
         #Creating table of only necessary columns
         data = data_original[colNameOld].reset_index(drop=True)
-        data['Date of test'] = date
-        data['Experimenter ID'] = user
+        data['Test Date'] = tf. corePfsDateTimeKluge(date.split(' ',1)[0])
+        data['Tester Name'] = user
         data['Comment'] = comment
         
         to_rename = {'CAGE':'Arena ID',
@@ -66,8 +66,8 @@ def transform(importPath, loadedPath):
         data_final = tf.final_data_LD(data)
         
         #Testing columns for proper data type
-        string_cols = ['Date of test', 
-                       'Experimenter ID', 
+        string_cols = ['Test Date', 
+                       'Tester Name', 
                        'Arena ID', 
                        'Start time', 
                        'Comment']
@@ -88,8 +88,7 @@ def transform(importPath, loadedPath):
         assert all(data_final['Sample Duration']==1200)  
 		
         for index, row in data_final.iterrows():
-            # index =  0,2,4,6,...   Column = 'Date of test'
-            data_final.at[index,'Date of test']= tf.corePfsDateTimeKluge(row['Date of test'])
+            data_final.at[index,'Test Date']= tf.corePfsDateTimeKluge(row['Test Date'])
            
         #print(data_final)
 			

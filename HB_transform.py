@@ -50,9 +50,9 @@ def transform(importPath, loadedPath):
         data = data_original[colNameOld].reset_index(drop=True)
 
         # Convert start time to mm/dd/yyyy/hh:mm:ss
-        data["START TIME"] = date.split(" ")[0] + " " + data["START TIME"]
-        data['Date of test'] = date
-        data['Experimenter ID'] = user
+        data["START TIME"] = date.split(" ")[0] + " " + data["START TIME"].str.replace(' PM','').str.replace(' AM','')  # TODO
+        data['Test Date'] = tf. corePfsDateTimeKluge(date.split(' ',1)[0])
+        data['Tester Name'] = user
         data['Comments'] = comment
 
         to_rename = {'CAGE': 'Arena ID',
@@ -85,10 +85,8 @@ def transform(importPath, loadedPath):
         # Creating table of only necessary columns
         data = data_original[colNameOld].reset_index(drop=True)
 
-        # Convert start time to mm/dd/yyyy/hh:mm:ss
-        #data["START TIME"] = date.split(" ")[0] + " " + data["START TIME"]
-        data['Date of test'] = date
-        data['Experimenter ID'] = user
+        data['Test Date'] =  tf. corePfsDateTimeKluge(date.split(' ',1)[0])
+        data['Tester Name'] = user
         data['Comments'] = comment
 
         to_rename = {'SUBJECT ID': 'EXPT_SAMPLE_BARCODE'}
@@ -101,8 +99,8 @@ def transform(importPath, loadedPath):
         # Calculations to create required columns for LIMS
         data_HPS = tf.calculations_HB(data)
         #####################################################################
-        data_all = pd.merge(data_CDO, data_HPS, on=['EXPT_SAMPLE_BARCODE', 'Date of test',
-                                                    'Experimenter ID', 'Comments'])
+        data_all = pd.merge(data_CDO, data_HPS, on=['EXPT_SAMPLE_BARCODE', 'Test Date',
+                                                    'Tester Name', 'Comments'])
         data_all['Arena ID'] = data_all['Arena ID'].str.extract('(\d+)')
         data_all = data_all.drop_duplicates()
         data_all = data_all.round(2)

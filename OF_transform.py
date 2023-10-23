@@ -54,10 +54,10 @@ def transform(importPath, loadedPath):
         # Creating table of only necessary columns
         data = data_original[colNameOld].reset_index(drop=True)
         # Convert start time to mm/dd/yyyy/hh:mm:ss
-        data["START TIME"] = date.split(" ")[0] + " " + data["START TIME"]
-
-        data['Date of test'] = date
-        data['Experimenter ID'] = user
+        #data["START TIME"] = date.split(" ")[0] + " " + data["START TIME"]
+        data["START TIME"] = date.split(" ")[0] + " " + data["START TIME"].str.replace(' PM','').str.replace(' AM','')  # TODO
+        data['Test Date'] = tf. corePfsDateTimeKluge(date.split(' ',1)[0])
+        data['Tester Name'] = user
         data['Comments'] = comment
         data['SUBJECT ID'] = data['SUBJECT ID'].astype(int)
         data['CAGE'] = data['CAGE'].str.replace('Cage ', '')
@@ -76,8 +76,8 @@ def transform(importPath, loadedPath):
         data_CDO = tf.data_CDO_OF(data)
 
         # Testing columns for proper data type
-        string_cols = ['Date of test',
-                       'Experimenter ID',
+        string_cols = ['Test Date',
+                       'Tester Name',
                        'Start Date and Time',
                        'Comments']
 
@@ -135,8 +135,8 @@ def transform(importPath, loadedPath):
 
         # Creating table of only necessary columns
         data = data_original[colNameOld].reset_index(drop=True)
-        data['Date of test'] = date
-        data['Experimenter ID'] = user
+        data['Test Date'] = date
+        data['Tester Name'] = user
         data['Comments'] = comment
 
         to_rename = {'CAGE': 'Arena ID',
