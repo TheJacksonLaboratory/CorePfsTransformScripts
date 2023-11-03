@@ -177,20 +177,20 @@ def main():
 
     # Get the list of raw files from the source folder
     filelist = listFiles(srcPath)
-    
+    if filelist == None:
+        exit()
     try:
-        
         # Parse each file into a single CSV string.
         rowlist = []
         for f in filelist:
             rowlist.append(parseErgFile(srcPath+f))
             
-        
         # Write the header then the data
-        with open(destPath,'w',newline='') as csvfile:
-            writer = csv.DictWriter(csvfile,fieldnames=rowlist[0].keys(),delimiter=',')
-            writer.writeheader()
-            writer.writerows(rowlist)
+        if len(rowlist) > 0:
+            with open(destPath,'w',newline='') as csvfile:
+                writer = csv.DictWriter(csvfile,fieldnames=rowlist[0].keys(),delimiter=',')
+                writer.writeheader()
+                writer.writerows(rowlist)
      
      # Move the raw files to the archive folder.
         for f in filelist:
