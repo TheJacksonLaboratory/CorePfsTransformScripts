@@ -23,24 +23,31 @@ from os import listdir
 from os import replace
 from os.path import basename, splitext, dirname
 import argparse
+import sys
 
 import transform_functions as tf
 
 basePath = ''
 imagePath = ''
 srcPath = ''
-destPath = ''
+destPath = ''  # current working directory
 logPath = ''
 
-derivedColumns = [
+derivedColumnsKomp = [
 'EXPT_SAMPLE_BARCODE' , # Filename
 'Waveform: Full Trace' , # path to image folder + filename + '-RAW.pdf'
 'Waveform: Ensemble Avg', # path to image folder + filename + '-AVERAGE.pdf'
-'Tester Name'
+'Tester Name',
+'Comments'  # No incoming value
+]
+
+derivedColumnsCba = [
+'Mouse ID' , # Filename
+'Comments'  # No incoming value
 ]
 
 # Each tuple is destination column, source column, row where data is found
-dstSrcColMap = [
+dstSrcColMapKomp = [
 ('Test Date','TimeDate',0),
 ('RR Interval (ms)','RR Interval (ms)',3),
 ('HR (bpm)','Heart Rate (BPM)',3),
@@ -61,6 +68,29 @@ dstSrcColMap = [
 ('Last Beat','Last Beat',3),
 ('Number of signals','Used',0),
 ('Edited','Edited',3)
+]
+
+dstSrcColMapCba = [
+#('Test Time','TimeDate',0),
+('RR Interval (msec)','RR Interval (ms)',3),
+('Heart Rate (bpm)','Heart Rate (BPM)',3),
+('PR Interval (msec)','PR Interval (ms)',3),
+('P Duration (msec)','P Duration (ms)',3),
+('QRS Interval (msec)','QRS Interval (ms)',3),
+('QT Interval (msec)','QT Interval (ms)',3),
+('QTc Interval (msec)','QTc (ms)',3),
+('JT Interval (msec)','JT Interval (ms)',3),
+('Tpeak Tend Interval (msec)','Tpeak Tend Interval (ms)',3),
+('P Amplitude (mV)','P Amplitude (mV)',3),
+('Q Amplitude (mV)','Q Amplitude (mV)',3),
+('R Amplitude (mV)','R Amplitude (mV)',3),
+('S Amplitude (mV)','S Amplitude (mV)',3),
+('ST Height (mV)','ST Height (mV)',3),
+('T Amplitude (mV)','T Amplitude (mV)',3)
+#('First Beat','First Beat',3),
+#('Last Beat','Last Beat',3),
+#('Number of signals','Used',0),
+#('Edited','Edited',3)
 ]
 
 
@@ -107,11 +137,15 @@ def addDerivedColumns(row,f):
     for key in derivedColumns:
         if key == 'EXPT_SAMPLE_BARCODE':
             row[key] = splitext(basename(f))[0]
+        elif key == 'Mouse ID':
+            row[key] = splitext(basename(f))[0]
         elif key == 'Waveform: Full Trace':
             row[key] = imagePath + splitext(basename(f))[0] + '-RAW.pdf'
         elif key == 'Waveform: Ensemble Avg':
             row[key] = imagePath + splitext(basename(f))[0] + '-AVERAGE.pdf'
         elif key == 'Tester Name':
+            row[key] = 'Not in raw file'
+        elif key == 'Comments':
             row[key] = 'Not in raw file'
 
 def listFiles(importPath):
@@ -120,7 +154,7 @@ def listFiles(importPath):
 
 def validateFile(f):
     # Is it a CSV file?
-    if f.endswith('.csv') == False and f.endswith('.txt') == False:
+    if f.endswith('.csv') == False and f.endswith('.txt') == False and f.endswith('.dat') == False:
         return False
     
     # Correct numer of rows?
@@ -155,32 +189,46 @@ def parseEkgFile(path):
         dumpFailedMessages(str(e))
         raise
     
-    # After the file is parsed successfully it is moved to the achive folder
-    # shutil.move(path, dirname(path) + "\\archive\\" + basename(path) )
     return returnRow
 
-def main():
-    args = argparse.ArgumentParser()
-    add_arguments(args)
-    # Get the list of raw files from the source folder
-    #filelist = local_utils.listFiles(args.source)
+def mainGalaxy():
     
-    global basePath
-    global imagePath
+    # This is used in the standalone version. In Galaxy it will get the files from the command line.
+    # argv[0] is python file name
+    # argv[1] is comma separated list of input files
+    # argv[2] isoutput file
+    
+    filelist = sys.argv[1].split(',')
+    destPath = sys.argv[2]
+       
+    try:
+        # Parse each file into a single CSV string (one per mouse) for the results..
+        rowlist = []
+        for f in filelist:
+            rowlist.append(parseEkgFile(f))
+            
+        
+        # Write the header then the data
+        with open(destPath,'w',newline='') as csvfile:
+            writer = csv.DictWriter(csvfile,fieldnames=rowlist[0].keys(),delimiter='\t')
+            writer.writeheader()
+            writer.writerows(rowlist)
+        
+    except Exception as e:
+        dumpFailedMessages(str(e))
+        
+        
+def mainStandAlone():
+    
     global srcPath
     global destPath
-    global logPath
-
-    #basePath = '\\\\jax\\jax\\phenotype\\EKG-V2\\KOMP-UAT\\'
-    #srcPath = basePath + 'transformData\\'
-    #imagePath = basePath + 'images\\'
-    #destPath = basePath + 'data\\temp.txt'
-    #logPath = basePath + 'failed\\'
     
+    # This is used in the standalone version. 
+    args = argparse.ArgumentParser()
+    add_arguments(args)
     filelist = listFiles(srcPath)
     
     try:
-    
         # Parse each file into a single CSV string.
         rowlist = []
         for f in filelist:
@@ -194,11 +242,32 @@ def main():
             writer.writerows(rowlist)
         
         # Move the raw files to the archive folder.
+        # Only used in the standalone version
         for f in filelist:
             replace((srcPath+f),(srcPath+"archive/"+f))
             
     except Exception as e:
         dumpFailedMessages(str(e))
         
+def main():
+    
+    # TDB - How will I know? argv[0]?
+    isKompTransform = True
+    isStandAlone = True
+    
+    global dstSrcColMap
+    global derivedColumns
+    if isKompTransform:
+        dstSrcColMap = dstSrcColMapKomp
+        derivedColumns = derivedColumnsKomp
+    else:
+        dstSrcColMap = dstSrcColMapCba
+        derivedColumns = derivedColumnsCba
+        
+    if(isStandAlone):
+        mainStandAlone()
+    else:
+        mainGalaxy()
+                  
 if __name__ == '__main__':
     main()
