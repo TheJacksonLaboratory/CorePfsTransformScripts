@@ -18,6 +18,7 @@ import pandas as pd
 import csv
 import shutil
 from datetime import datetime
+import platform
 import os
 from os import listdir
 from os import replace
@@ -26,6 +27,7 @@ import argparse
 import sys
 
 import transform_functions as tf
+import galaxy_db as gdb
 
 basePath = ''
 imagePath = ''
@@ -136,9 +138,19 @@ def addDerivedColumns(row,f):
     global imagePath
     for key in derivedColumns:
         if key == 'EXPT_SAMPLE_BARCODE':
-            row[key] = splitext(basename(f))[0]
+            if isKompTransform:
+                row[key] = splitext(basename(f))[0]
+            else:
+                idx = f.index('.dat')
+                s = f[idx-12:idx]
+                row[key] = gdb.getOriginalFilename(s)
         elif key == 'Mouse ID':
-            row[key] = splitext(basename(f))[0]
+            if isKompTransform:
+                row[key] = splitext(basename(f))[0]
+            else:
+                idx = f.index('.dat')
+                s = f[idx-12:idx]
+                row[key] = gdb.getOriginalFilename(s)
         elif key == 'Waveform: Full Trace':
             row[key] = imagePath + splitext(basename(f))[0] + '-RAW.pdf'
         elif key == 'Waveform: Ensemble Avg':
@@ -162,9 +174,10 @@ def validateFile(f):
     return True
 
 def dumpFailedMessages(msgs):
+    global logPath
     filename_as_time = datetime.now().strftime("%Y-%m-%d.%H.%M") + ".log"
     f = open(logPath+filename_as_time,"a")
-    f.write(msgs)
+    f.write(msgs + '\n')
     f.close()
 
 def parseEkgFile(path):
@@ -186,7 +199,7 @@ def parseEkgFile(path):
         else:
             dumpFailedMessages("File {0} is not valid.".format(path))
     except Exception as e:
-        dumpFailedMessages(str(e))
+        dumpFailedMessages('ERROR: ' + path + ' ' + str(e))
         raise
     
     return returnRow
@@ -198,9 +211,15 @@ def mainGalaxy():
     # argv[1] is comma separated list of input files
     # argv[2] isoutput file
     
+    if len(sys.argv) < 3:
+        print("Usage <module name>, <comma separated filelist>, <output file>")
+        exit()
+
     filelist = sys.argv[1].split(',')
     destPath = sys.argv[2]
-       
+    global logPath
+    logPath = '.'
+    
     try:
         # Parse each file into a single CSV string (one per mouse) for the results..
         rowlist = []
@@ -209,10 +228,11 @@ def mainGalaxy():
             
         
         # Write the header then the data
-        with open(destPath,'w',newline='') as csvfile:
-            writer = csv.DictWriter(csvfile,fieldnames=rowlist[0].keys(),delimiter='\t')
-            writer.writeheader()
-            writer.writerows(rowlist)
+        if len(rowlist) > 0:
+            with open(destPath,'w',newline='') as csvfile:
+                writer = csv.DictWriter(csvfile,fieldnames=rowlist[0].keys(),delimiter='\t')
+                writer.writeheader()
+                writer.writerows(rowlist)
         
     except Exception as e:
         dumpFailedMessages(str(e))
@@ -227,34 +247,36 @@ def mainStandAlone():
     args = argparse.ArgumentParser()
     add_arguments(args)
     filelist = listFiles(srcPath)
-    
+    filename = ''
     try:
         # Parse each file into a single CSV string.
         rowlist = []
         for f in filelist:
-            rowlist.append(parseEkgFile(srcPath+f))
+            filename = srcPath+f
+            rowlist.append(parseEkgFile(filename))
             
-        
         # Write the header then the data
-        with open(destPath,'w',newline='') as csvfile:
-            writer = csv.DictWriter(csvfile,fieldnames=rowlist[0].keys(),delimiter='\t')
-            writer.writeheader()
-            writer.writerows(rowlist)
+        if len(rowlist) > 0:
+            with open(destPath,'w',newline='') as csvfile:
+                writer = csv.DictWriter(csvfile,fieldnames=rowlist[0].keys(),delimiter='\t')
+                writer.writeheader()
+                writer.writerows(rowlist)
         
-        # Move the raw files to the archive folder.
-        # Only used in the standalone version
-        for f in filelist:
-            replace((srcPath+f),(srcPath+"archive/"+f))
+            # Move the raw files to the archive folder.
+            # Only used in the standalone version
+            for f in filelist:
+                shutil.move((srcPath+f),(srcPath+"archive/"+f))
             
     except Exception as e:
-        dumpFailedMessages(str(e))
+        dumpFailedMessages(filename + ' : ' + str(e))
+        
         
 def main():
     
     # TDB - How will I know? argv[0]?
-    isKompTransform = True
-    isStandAlone = True
-    
+    isKompTransform = 'KOMP' in sys.argv
+    isStandAlone = platform.system() == 'Windows'
+
     global dstSrcColMap
     global derivedColumns
     if isKompTransform:
